@@ -55,11 +55,13 @@ download() {
   source_url="$1"
   destination="$2"
   if [ -n "${github_token}" ]; then
-    curl --fail --show-error --location --retry 3 --progress-bar \
+    curl --fail --show-error --location --retry 3 --retry-all-errors --retry-delay 1 \
+      --connect-timeout 10 --max-time 300 --progress-bar \
       --header "Authorization: Bearer ${github_token}" \
       --output "${destination}" "${source_url}"
   else
-    curl --fail --show-error --location --retry 3 --progress-bar \
+    curl --fail --show-error --location --retry 3 --retry-all-errors --retry-delay 1 \
+      --connect-timeout 10 --max-time 300 --progress-bar \
       --output "${destination}" "${source_url}"
   fi
 }
