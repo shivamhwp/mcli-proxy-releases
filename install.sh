@@ -88,7 +88,18 @@ echo "installed mcli ${installed_version} at ${install_directory}/mcli"
 
 case ":${PATH}:" in
   *":${install_directory}:"*) ;;
-  *) echo "add to PATH: export PATH=\"${install_directory}:\$PATH\"" ;;
+  *)
+    shell_name="${SHELL##*/}"
+    if [ "${shell_name}" = "fish" ]; then
+      if command -v fish >/dev/null 2>&1 && fish -c 'fish_add_path --universal $argv[1]' -- "${install_directory}"; then
+        printf 'added %s to Fish PATH\n' "${install_directory}"
+      else
+        printf "add to Fish PATH: fish_add_path '%s'\n" "${install_directory}"
+      fi
+    else
+      echo "add to PATH: export PATH=\"${install_directory}:\$PATH\""
+    fi
+    ;;
 esac
 
 echo "next: mcli setup"
