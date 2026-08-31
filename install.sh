@@ -8,6 +8,12 @@ install_directory="${MCLI_INSTALL_DIR:-${HOME}/.local/bin}"
 github_token="${MCLI_GITHUB_TOKEN:-${GH_TOKEN:-${GITHUB_TOKEN:-}}}"
 custom_release_url="${MCLI_RELEASE_URL:-}"
 
+step() {
+  printf '\n[%s/7] %s\n' "$1" "$2"
+}
+
+step 1 "detecting platform"
+
 case "$(uname -s)" in
   Darwin) operating_system="darwin" ;;
   Linux) operating_system="linux" ;;
@@ -27,6 +33,8 @@ case "$(uname -m)" in
 esac
 
 asset="mcli-${operating_system}-${architecture}"
+printf 'target: %s\n' "${asset}"
+
 if [ -n "${custom_release_url}" ]; then
   release_url="${custom_release_url%/}"
 elif [ "${release_version}" = "latest" ]; then
@@ -46,18 +54,22 @@ download() {
   source_url="$1"
   destination="$2"
   if [ -n "${github_token}" ]; then
-    curl --fail --silent --show-error --location --retry 3 \
+    curl --fail --show-error --location --retry 3 --progress-bar \
       --header "Authorization: Bearer ${github_token}" \
       --output "${destination}" "${source_url}"
   else
-    curl --fail --silent --show-error --location --retry 3 \
+    curl --fail --show-error --location --retry 3 --progress-bar \
       --output "${destination}" "${source_url}"
   fi
 }
 
+step 2 "downloading ${asset}"
 download "${release_url}/${asset}" "${temporary_directory}/${asset}"
+
+step 3 "downloading SHA256SUMS"
 download "${release_url}/SHA256SUMS" "${temporary_directory}/SHA256SUMS"
 
+step 4 "verifying checksum"
 expected_checksum="$(awk -v name="${asset}" '$2 == name || $2 == "*" name { print $1; exit }' "${temporary_directory}/SHA256SUMS")"
 if [ -z "${expected_checksum}" ]; then
   echo "SHA256SUMS does not contain ${asset}" >&2
@@ -78,16 +90,18 @@ if [ "${actual_checksum}" != "${expected_checksum}" ]; then
   exit 1
 fi
 
+step 5 "installing binary"
 mkdir -p "${install_directory}"
 staged_binary="${install_directory}/.mcli.$$.install"
 install -m 0755 "${temporary_directory}/${asset}" "${staged_binary}"
 mv -f "${staged_binary}" "${install_directory}/mcli"
 
 installed_version="$(${install_directory}/mcli --version)"
-echo "installed mcli ${installed_version} at ${install_directory}/mcli"
+printf 'installed at %s/mcli\n' "${install_directory}"
 
+step 6 "configuring shell"
 case ":${PATH}:" in
-  *":${install_directory}:"*) ;;
+  *":${install_directory}:"*) printf '%s is already in PATH\n' "${install_directory}" ;;
   *)
     shell_name="${SHELL##*/}"
     if [ "${shell_name}" = "fish" ]; then
@@ -102,4 +116,5 @@ case ":${PATH}:" in
     ;;
 esac
 
-echo "next: mcli setup"
+step 7 "mcli ${installed_version} is ready"
+printf 'next: mcli setup\n'
