@@ -32,7 +32,8 @@ case "$(uname -m)" in
     ;;
 esac
 
-asset="mcli-${operating_system}-${architecture}"
+binary_name="mcli-${operating_system}-${architecture}"
+asset="${binary_name}.gz"
 printf 'target: %s\n' "${asset}"
 
 if [ -n "${custom_release_url}" ]; then
@@ -91,9 +92,14 @@ if [ "${actual_checksum}" != "${expected_checksum}" ]; then
 fi
 
 step 5 "installing binary"
+if ! command -v gzip >/dev/null 2>&1; then
+  echo "mcli needs gzip to extract the download" >&2
+  exit 1
+fi
+gzip -dc "${temporary_directory}/${asset}" > "${temporary_directory}/${binary_name}"
 mkdir -p "${install_directory}"
 staged_binary="${install_directory}/.mcli.$$.install"
-install -m 0755 "${temporary_directory}/${asset}" "${staged_binary}"
+install -m 0755 "${temporary_directory}/${binary_name}" "${staged_binary}"
 mv -f "${staged_binary}" "${install_directory}/mcli"
 
 installed_version="$(${install_directory}/mcli --version)"
